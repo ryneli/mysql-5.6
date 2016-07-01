@@ -19,6 +19,7 @@
 #endif
 
 #define MYSQL_SERVER 1
+#define LIBRADOS
 
 /* The C++ file's header */
 #include "./ha_rocksdb.h"
@@ -44,6 +45,9 @@
 #include "rocksdb/utilities/convenience.h"
 #include "rocksdb/utilities/flashcache.h"
 #include "rocksdb/utilities/memory_util.h"
+#ifdef LIBRADOS
+#include "rocksdb/utilities/env_librados.h"
+#endif
 
 /* MyRocks includes */
 #include "./event_listener.h"
@@ -121,6 +125,14 @@ static char * rocksdb_default_cf_options;
 static char * rocksdb_override_cf_options;
 Rdb_cf_options rocksdb_cf_options_map;
 
+#ifdef LIBRADOS
+/**
+ * switch of librados env
+ */
+EnvLibrados g_env_librados("mysql_db",
+                           "/home/ryne/Workspace/ceph/src/ceph.conf",
+                           "mysql_db_pool");
+#endif 
 ///////////////////////////////////////////////////////////
 // Globals
 ///////////////////////////////////////////////////////////
@@ -391,6 +403,9 @@ static rocksdb::DBOptions rdb_init_rocksdb_db_options(void)
   o.info_log_level= rocksdb::InfoLogLevel::INFO_LEVEL;
   o.max_subcompactions= DEFAULT_SUBCOMPACTIONS;
 
+#ifdef LIBRADOS
+  o.env = &g_env_librados;
+#endif
   return o;
 }
 
@@ -2612,9 +2627,16 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
+
+  #ifdef LIBRADOS
+  rocksdb::Status status = LoadLatestOptions(dbpath,
+                            &g_env_librados, &loaded_db_opt,
+                            &loaded_cf_descs);
+  #else
   rocksdb::Status status = LoadLatestOptions(dbpath,
                             rocksdb::Env::Default(), &loaded_db_opt,
                             &loaded_cf_descs);
+  #endif
 
   // If we're starting from scratch and there are no options saved yet then this
   // is a valid case. Therefore we can't compare the current set of options to
@@ -2652,8 +2674,13 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
+  #ifdef LIBRADOS
+  status = CheckOptionsCompatibility(dbpath, &g_env_librados,
+                                     main_opts, loaded_cf_descs);
+  #else
   status = CheckOptionsCompatibility(dbpath, rocksdb::Env::Default(),
                                      main_opts, loaded_cf_descs);
+  #endif
 
   return status;
 }
@@ -2873,6 +2900,7 @@ static int rocksdb_init_func(void *p)
     RocksDB adds background threads into Flashcache blacklists, which
     makes sense for Flashcache use cases.
   */
+  #ifndef LIBRADOS
   if (cachedev_enabled)
   {
     flashcache_aware_env=
@@ -2890,6 +2918,7 @@ static int rocksdb_init_func(void *p)
                           "writer threads, fd %d", cachedev_fd);
     main_opts.env= flashcache_aware_env.get();
   }
+  #endif
 
   main_opts.env->SetBackgroundThreads(main_opts.max_background_flushes,
                                       rocksdb::Env::Priority::HIGH);
