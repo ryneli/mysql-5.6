@@ -125,14 +125,6 @@ static char * rocksdb_default_cf_options;
 static char * rocksdb_override_cf_options;
 Rdb_cf_options rocksdb_cf_options_map;
 
-#ifdef LIBRADOS
-/**
- * switch of librados env
- */
-EnvLibrados g_env_librados("mysql_db",
-                           "/home/ryne/Workspace/ceph/src/ceph.conf",
-                           "mysql_db_pool");
-#endif 
 ///////////////////////////////////////////////////////////
 // Globals
 ///////////////////////////////////////////////////////////
@@ -404,7 +396,7 @@ static rocksdb::DBOptions rdb_init_rocksdb_db_options(void)
   o.max_subcompactions= DEFAULT_SUBCOMPACTIONS;
 
 #ifdef LIBRADOS
-  o.env = &g_env_librados;
+  o.env = rocksdb::EnvLibrados::Default();
 #endif
   return o;
 }
@@ -2630,7 +2622,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   #ifdef LIBRADOS
   rocksdb::Status status = LoadLatestOptions(dbpath,
-                            &g_env_librados, &loaded_db_opt,
+                            rocksdb::EnvLibrados::Default(), &loaded_db_opt,
                             &loaded_cf_descs);
   #else
   rocksdb::Status status = LoadLatestOptions(dbpath,
@@ -2675,7 +2667,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
   #ifdef LIBRADOS
-  status = CheckOptionsCompatibility(dbpath, &g_env_librados,
+  status = CheckOptionsCompatibility(dbpath, rocksdb::EnvLibrados::Default(),
                                      main_opts, loaded_cf_descs);
   #else
   status = CheckOptionsCompatibility(dbpath, rocksdb::Env::Default(),
