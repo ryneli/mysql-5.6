@@ -80,7 +80,7 @@ ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt")
 
-IF(LIBRADOS)
+IF(ROCKSDB_USE_LIBRADOS)
   SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrados")
 ENDIF()
 

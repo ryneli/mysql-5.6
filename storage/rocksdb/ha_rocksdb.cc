@@ -19,7 +19,7 @@
 #endif
 
 #define MYSQL_SERVER 1
-#define LIBRADOS
+#define ROCKSDB_USE_LIBRADOS
 
 /* The C++ file's header */
 #include "./ha_rocksdb.h"
@@ -45,7 +45,7 @@
 #include "rocksdb/utilities/convenience.h"
 #include "rocksdb/utilities/flashcache.h"
 #include "rocksdb/utilities/memory_util.h"
-#ifdef LIBRADOS
+#ifdef ROCKSDB_USE_LIBRADOS
 #include "rocksdb/utilities/env_librados.h"
 #endif
 
@@ -395,7 +395,7 @@ static rocksdb::DBOptions rdb_init_rocksdb_db_options(void)
   o.info_log_level= rocksdb::InfoLogLevel::INFO_LEVEL;
   o.max_subcompactions= DEFAULT_SUBCOMPACTIONS;
 
-#ifdef LIBRADOS
+#ifdef ROCKSDB_USE_LIBRADOS
   o.env = rocksdb::EnvLibrados::Default();
 #endif
   return o;
@@ -2620,7 +2620,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   rocksdb::DBOptions loaded_db_opt;
   std::vector<rocksdb::ColumnFamilyDescriptor> loaded_cf_descs;
 
-  #ifdef LIBRADOS
+  #ifdef ROCKSDB_USE_LIBRADOS
   rocksdb::Status status = LoadLatestOptions(dbpath,
                             rocksdb::EnvLibrados::Default(), &loaded_db_opt,
                             &loaded_cf_descs);
@@ -2666,7 +2666,7 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // This is the essence of the function - determine if it's safe to open the
   // database or not.
-  #ifdef LIBRADOS
+  #ifdef ROCKSDB_USE_LIBRADOS
   status = CheckOptionsCompatibility(dbpath, rocksdb::EnvLibrados::Default(),
                                      main_opts, loaded_cf_descs);
   #else
@@ -2892,7 +2892,7 @@ static int rocksdb_init_func(void *p)
     RocksDB adds background threads into Flashcache blacklists, which
     makes sense for Flashcache use cases.
   */
-  #ifndef LIBRADOS
+  #ifndef ROCKSDB_USE_LIBRADOS
   if (cachedev_enabled)
   {
     flashcache_aware_env=
